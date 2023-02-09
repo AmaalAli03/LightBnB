@@ -98,18 +98,18 @@ const addUser = (user) => {
   INSERT INTO users (name, email, password) 
   VALUES ($1, $2, $3)
   RETURNING *;
-  `)
+  `);
   const params = [user.name, user.email, user.password];
   return pool
-  .query(query, params)
-  .then((result) => result.rows)
-  //rows will always be an array
-  .then((rows) => rows[0])
-  .then((user) => user ? user : null)
-  .catch((err) => {
-    console.log(err.message);
-  });
-  
+    .query(query, params)
+    .then((result) => result.rows)
+    //rows will always be an array
+    .then((rows) => rows[0])
+    .then((user) => user ? user : null)
+    .catch((err) => {
+      console.log(err.message);
+    });
+
 
 };
 exports.addUser = addUser;
@@ -131,20 +131,20 @@ const getAllReservations = function(guest_id, limit = 10) {
   GROUP BY reservations.id, properties.id
   ORDER BY reservations.start_date asc
   LIMIT $2;
-  `)
+  `);
   const params = [guest_id, limit];
   return pool
-  .query(query, params)
-  .then((result) => result.rows)
-  //represents all reservations for guest
-  //rows will always be an array
-  // .then((rows) => rows[0])
-  // take the first reservation
-  // .then((user) => user ? user : null)
-  // if there is a reservation return it if not null
-  .catch((err) => {
-    console.log(err.message);
-  });
+    .query(query, params)
+    .then((result) => result.rows)
+    //represents all reservations for guest
+    //rows will always be an array
+    // .then((rows) => rows[0])
+    // take the first reservation
+    // .then((user) => user ? user : null)
+    // if there is a reservation return it if not null
+    .catch((err) => {
+      console.log(err.message);
+    });
 };
 exports.getAllReservations = getAllReservations;
 
@@ -161,21 +161,74 @@ exports.getAllReservations = getAllReservations;
 //   }
 //   return Promise.resolve(limitedProperties);
 // };
-const getAllProperties = (options, limit = 10) => {
+// const getAllProperties = (options, limit = 10) => {
 
-  return pool
-    .query(`
-      SELECT * 
-      FROM properties
-      LIMIT $1
-      `, [limit])
-    .then((result) => {
-      console.log(result.rows);
-      return result.rows;
-    })
-    .catch((err) => {
-      console.log(err.message);
-    });
+//   return pool
+//     .query(`
+//       SELECT * 
+//       FROM properties
+//       LIMIT $1
+//       `, [limit])
+//     .then((result) => {
+//       console.log(result.rows);
+//       return result.rows;
+//     })
+//     .catch((err) => {
+//       console.log(err.message);
+//     });
+// };
+const getAllProperties = function(options, limit = 10) {
+  // 1
+  const queryParams = [];
+  // 2
+  let queryString = `
+  SELECT properties.*, avg(property_reviews.rating) as average_rating
+  FROM properties
+  JOIN property_reviews ON properties.id = property_id
+  WHERE 1=1\n
+  `;
+
+  // 3
+  if (options.city) {
+    queryParams.push(`%${options.city}%`);
+    queryString += `AND city LIKE $${queryParams.length}\n`;
+  }
+
+  if (options.owner_id) {
+    queryParams.push(`%${options.owner_id}%`);
+    queryString += `AND owner_id = $${queryParams.length}\n`;
+  }
+
+  if (options.minimum_price_per_night) {
+    queryParams.push(options.minimum_price_per_night * 100);
+    queryString += `AND cost_per_night >= $${queryParams.length}\n`;
+  }
+
+  if (options.maximum_price_per_night) {
+    queryParams.push(options.maximum_price_per_night * 100);
+    queryString += `AND cost_per_night <= $${queryParams.length}\n`;
+  }
+
+  queryString += 'GROUP BY properties.id\n';
+
+  if (options.minimum_rating) {
+    queryParams.push(options.minimum_rating);
+    queryString += `HAVING avg(rating) >= $${queryParams.length}\n`;
+  }
+
+
+  // 4
+  queryParams.push(limit);
+  queryString += `
+    ORDER BY cost_per_night
+    LIMIT $${queryParams.length};
+    `;
+
+  // 5
+  console.log(queryString, queryParams);
+
+  // 6
+  return pool.query(queryString, queryParams).then((res) => res.rows);
 };
 exports.getAllProperties = getAllProperties;
 
@@ -185,10 +238,17 @@ exports.getAllProperties = getAllProperties;
  * @param {{}} property An object containing all of the property details.
  * @return {Promise<{}>} A promise to the property.
  */
+// const addProperty = function(property) {
+//   const propertyId = Object.keys(properties).length + 1;
+//   property.id = propertyId;
+//   properties[propertyId] = property;
+//   return Promise.resolve(property);
+// };
 const addProperty = function(property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+  const query = (`
+  INSERT INTO users (name, email, password) 
+  VALUES ($1, $2, $3)
+  RETURNING *;
+  `);
 };
 exports.addProperty = addProperty;
